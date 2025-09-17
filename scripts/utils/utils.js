@@ -1,3 +1,7 @@
+export let setting = {
+    isMobile: true,
+}
+
 export function getCenterX(scene){
     return scene.sys.canvas.width / 2;
 }
