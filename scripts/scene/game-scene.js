@@ -4,7 +4,7 @@ export class GameScene extends Phaser.Scene {
     constructor() {
         super("GameScene");
         this.currentQuestion = 0;
-        this.totalQuestions = 20;
+        this.totalQuestions = 45;
         this.score = 0;
         this.mainCircleRadius = 400;
         this.centerX = 0;
@@ -147,17 +147,12 @@ export class GameScene extends Phaser.Scene {
             this.createConstrainedMovement(ballContainer);
         }
 
-        // ✅ Create answer options (always 5)
+        // ✅ Create answer options (always 5) - all close to correct answer
         if (this.optionGroup) this.optionGroup.clear(true, true);
         this.optionGroup = this.add.group();
 
-        let options = [this.correctCount];
-        while (options.length < 5) {
-            let fake = Phaser.Math.Between(3, 20);
-            if (!options.includes(fake)) options.push(fake);
-        }
-
-        Phaser.Utils.Array.Shuffle(options);
+        // Generate options close to the correct answer
+        let options = this.generateCloseOptions(this.correctCount);
 
         let xOffset = setting.isMobile ? 100 : 500;
 
@@ -173,6 +168,31 @@ export class GameScene extends Phaser.Scene {
                 .on("pointerdown", () => this.checkAnswer(num));
             this.optionGroup.add(btn);
         });
+    }
+
+    // ✅ New method to generate 5 options close to the correct answer
+    generateCloseOptions(correctAnswer) {
+        let options = [correctAnswer]; // Start with correct answer
+        
+        // Define how close the options should be (adjust this for difficulty)
+        let range = Math.max(2, Math.floor(correctAnswer * 0.3)); // 30% of correct answer, minimum 2
+        
+        // Generate 4 more options close to the correct answer
+        while (options.length < 5) {
+            // Generate numbers within range of correct answer
+            let offset = Phaser.Math.Between(-range, range);
+            let candidate = correctAnswer + offset;
+            
+            // Make sure the candidate is positive and not already in options
+            if (candidate > 0 && !options.includes(candidate)) {
+                options.push(candidate);
+            }
+        }
+        
+        // Shuffle the options so correct answer isn't always in the same position
+        Phaser.Utils.Array.Shuffle(options);
+        
+        return options;
     }
 
     checkAnswer(num) {
@@ -214,14 +234,62 @@ export class GameScene extends Phaser.Scene {
     update() {}
 
     showResult() {
-
         this.canAnswer = false;
 
+        // Calculate accuracy percentage
+        let accuracy = this.currentQuestion > 0 ? Math.round((this.score / this.currentQuestion) * 100) : 0;
+        
+        // Determine performance level
+        let performanceLevel = "";
+        let levelColor = "#ffffff";
+        
+        if (this.score < 28 || accuracy < 85) {
+            performanceLevel = "FAIL";
+            levelColor = "#ff4444";
+        } else if (this.score >= 28 && this.score <= 33 && accuracy >= 85 && accuracy < 90) {
+            performanceLevel = "BASELINE / RISKY";
+            levelColor = "#ffaa00";
+        } else if (this.score >= 34 && this.score <= 36 && accuracy >= 90) {
+            performanceLevel = "SAFE PASS";
+            levelColor = "#44ff44";
+        } else if (this.score >= 37 && this.score <= 40 && accuracy >= 90) {
+            performanceLevel = "ELITE";
+            levelColor = "#00ffff";
+        } else if (this.score > 40 && accuracy >= 90) {
+            performanceLevel = "LEGENDARY";
+            levelColor = "#gold";
+        }
+
         this.add
-            .text(getWidth(this) / 2, 400, `Game Over!\nYour Score: ${this.score}/${this.totalQuestions}`, {
-                fontSize: "64px",
+            .text(getWidth(this) / 2, 300, "Game Over!", {
+                fontSize: "72px",
                 color: "#ffffff",
                 align: "center",
+            })
+            .setOrigin(0.5);
+
+        this.add
+            .text(getWidth(this) / 2, 380, `Score: ${this.score}/${this.currentQuestion}`, {
+                fontSize: "48px",
+                color: "#ffffff",
+                align: "center",
+            })
+            .setOrigin(0.5);
+
+        this.add
+            .text(getWidth(this) / 2, 440, `Accuracy: ${accuracy}%`, {
+                fontSize: "48px",
+                color: "#ffffff",
+                align: "center",
+            })
+            .setOrigin(0.5);
+
+        this.add
+            .text(getWidth(this) / 2, 520, performanceLevel, {
+                fontSize: "56px",
+                color: levelColor,
+                align: "center",
+                fontStyle: "bold",
             })
             .setOrigin(0.5);
     }
